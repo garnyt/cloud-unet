@@ -346,7 +346,7 @@ def main_many_gpu(model_filename, data_filepath, checkpoint_dir, batch_size, epo
     return model 
 
 
-model_filename = '../models/sparcs_data_l8/models/sparcs_3D_100epochs_32bs_128patch_4gpu.h5'
+model_filename = '../models/sparcs_3D_100epochs_32bs_128patch_4gpu.h5'
 data_filepath = '../scenes/'
 checkpoint_dir = '../models/'
 batch_size = 32
