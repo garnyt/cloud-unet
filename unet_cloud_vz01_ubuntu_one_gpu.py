@@ -285,8 +285,8 @@ def main_one_gpu(model_filename, data_filepath, batch_size, epochs):
     return model, history
     
     
-model_filename = 'models/sparcs_data_l8/models/sparcs_3D_100epochs_32bs_64patch_1gpu.h5'
-data_filepath = 'scenes/'
+model_filename = '../models/sparcs_data_l8/models/sparcs_3D_100epochs_32bs_64patch_1gpu.h5'
+data_filepath = '../scenes/'
 batch_size = 32
 epochs = 100
 
