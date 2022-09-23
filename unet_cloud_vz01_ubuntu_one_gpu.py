@@ -243,6 +243,8 @@ def plotting_results(history):
     plt.legend()
     plt.show()
     
+    plt.savefig('../models/history_plot.png')
+    
     
 def main_one_gpu(model_filename, data_filepath, batch_size, epochs):
 
