@@ -169,7 +169,7 @@ def apptemp(img,  band ='b10'):
     return temperature
 
 
-def load_and_format_training_data(filepath):
+def load_and_format_training_data(filepath, patch_size):
 
     cnt = 0
     for file in os.listdir(filepath):
@@ -192,13 +192,15 @@ def load_and_format_training_data(filepath):
     
     n_classes = 7 #np.unique(mask).shape[0]
     
-    # create smaller section per image 
-    img_patches = patchify(image, (128, 128, 6), step=125)  # (4,4,4,64,64,64) (8, 698, 1, 128, 128, 6)#Step=64 for 64 patches means no overlap
-    mask_patches = patchify(mask.astype(int), (128, 128), step=125)  # (4,4,4,64,64,64) (8, 698, 128, 128)
+    if patch_size==64:
+        img_patches = patchify(image, (64, 64, 6), step=62)  # (4,4,4,64,64,64) (8, 698, 1, 128, 128, 6)#Step=64 for 64 patches means no overlap
+        mask_patches = patchify(mask.astype(int), (64, 64), step=62)  # (4,4,4,64,64,64) (8, 698, 128, 128)
+    elif patch_size==128:
+        # create smaller section per image 
+        img_patches = patchify(image, (128, 128, 6), step=125)  # (4,4,4,64,64,64) (8, 698, 1, 128, 128, 6)#Step=64 for 64 patches means no overlap
+        mask_patches = patchify(mask.astype(int), (128, 128), step=125)  # (4,4,4,64,64,64) (8, 698, 128, 128)
 
-    # img_patches = patchify(image, (128, 128, 6), step=109)  # (4,4,4,64,64,64) (8, 698, 1, 128, 128, 6)#Step=64 for 64 patches means no overlap
-    # mask_patches = patchify(mask.astype(int), (128, 128), step=109)  # (4,4,4,64,64,64) (8, 698, 128, 128)
-
+    
     input_img = np.reshape(img_patches, (-1, img_patches.shape[3], img_patches.shape[4], img_patches.shape[5])) #(64,64,64,64) (5584, 128, 128, 6)
     input_mask = np.reshape(mask_patches, (-1, mask_patches.shape[2], mask_patches.shape[3])) #(64,64,64,64) (5584, 128, 128)
     
@@ -216,7 +218,7 @@ def load_and_format_training_data(filepath):
 
 
     
-def main_many_gpu(model_filename, data_filepath, checkpoint_dir, batch_size, epochs):
+def main_many_gpu(model_filename, data_filepath, checkpoint_dir, batch_size, epochs, patch_size):
     
     #https://www.tensorflow.org/tutorials/distribute/custom_training
 
@@ -224,7 +226,7 @@ def main_many_gpu(model_filename, data_filepath, checkpoint_dir, batch_size, epo
     
     strategy = tf.distribute.MirroredStrategy(devices=["/GPU:1", "/GPU:2", "/GPU:3", "/GPU:4"])
 
-    n_classes, X_train, X_test, y_train, y_test = load_and_format_training_data(data_filepath)
+    n_classes, X_train, X_test, y_train, y_test = load_and_format_training_data(data_filepath, patch_size)
     
     # reduce training data by removing duplicates
     
@@ -346,14 +348,17 @@ def main_many_gpu(model_filename, data_filepath, checkpoint_dir, batch_size, epo
     return model 
 
 
-model_filename = '../models/sparcs_3D_100epochs_32bs_128patch_4gpu.h5'
+batches = [16, 32, 64, 128, 256]
 data_filepath = '../scenes/'
 checkpoint_dir = '../models/'
-batch_size = 32
 epochs = 100
+pathces = [64, 128]
 
+for batch_size in batches:
+    for patch_size in pathces:
 
-model = main_many_gpu(model_filename, data_filepath, checkpoint_dir, batch_size, epochs)
+        model_filename = f'../models/sparcs_3D_100epochs_{batch_size}bs_{patch_size}patch_4gpu.h5'
+        model = main_many_gpu(model_filename, data_filepath, checkpoint_dir, batch_size, epochs, patch_size)
 
 
 
