@@ -351,10 +351,10 @@ def main_many_gpu(model_filename, data_filepath, checkpoint_dir, batch_size, epo
 
 
 
-batches = [16, 32, 64, 128, 256]
+batches = [16, 32]
 data_filepath = '../scenes/'
 checkpoint_dir = '../models/'
-epochs = 100
+epochs = 50
 pathces = [64, 128]
 
 for batch_size in batches:
