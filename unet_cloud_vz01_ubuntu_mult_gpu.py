@@ -192,6 +192,8 @@ def load_and_format_training_data(filepath, patch_size):
     
     n_classes = 7 #np.unique(mask).shape[0]
     
+    print("Creating patches...")
+    
     if patch_size==64:
         img_patches = patchify(image, (64, 64, 6), step=62)  # (4,4,4,64,64,64) (8, 698, 1, 128, 128, 6)#Step=64 for 64 patches means no overlap
         mask_patches = patchify(mask.astype(int), (64, 64), step=62)  # (4,4,4,64,64,64) (8, 698, 128, 128)
@@ -227,6 +229,7 @@ def main_many_gpu(model_filename, data_filepath, checkpoint_dir, batch_size, epo
     strategy = tf.distribute.MirroredStrategy(devices=["/GPU:1", "/GPU:2", "/GPU:3", "/GPU:4"])
 
     n_classes, X_train, X_test, y_train, y_test = load_and_format_training_data(data_filepath, patch_size)
+    print("Loaded data...")
     
     # reduce training data by removing duplicates
     
@@ -243,7 +246,6 @@ def main_many_gpu(model_filename, data_filepath, checkpoint_dir, batch_size, epo
     train_dist_dataset = strategy.experimental_distribute_dataset(train_dataset)
     test_dist_dataset = strategy.experimental_distribute_dataset(test_dataset)
 
-    
     patches, patch_size_x, patch_size_y, patch_size_z, channels = X_train.shape
     
     input_shape = [patch_size_x, patch_size_y, patch_size_z, channels]
@@ -312,7 +314,7 @@ def main_many_gpu(model_filename, data_filepath, checkpoint_dir, batch_size, epo
     def distributed_test_step(dataset_inputs):
         return strategy.run(test_step, args=(dataset_inputs,))
 
-
+    print("Start training...")
     for epoch in range(EPOCHS):
         # TRAIN LOOP
         total_loss = 0.0
@@ -348,6 +350,7 @@ def main_many_gpu(model_filename, data_filepath, checkpoint_dir, batch_size, epo
     return model 
 
 
+
 batches = [16, 32, 64, 128, 256]
 data_filepath = '../scenes/'
 checkpoint_dir = '../models/'
@@ -358,7 +361,10 @@ for batch_size in batches:
     for patch_size in pathces:
 
         model_filename = f'../models/sparcs_3D_100epochs_{batch_size}bs_{patch_size}patch_4gpu.h5'
+        
         model = main_many_gpu(model_filename, data_filepath, checkpoint_dir, batch_size, epochs, patch_size)
+        
+        print(f"{model_filename} saved")
 
 
 
