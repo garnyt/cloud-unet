@@ -195,24 +195,27 @@ def load_and_format_training_data(filepath, patch_size):
     print("Creating patches...")
     
     if patch_size==64:
+        print(f"Patch size = {patch_size}")
         img_patches = patchify(image, (64, 64, 6), step=62)  # (4,4,4,64,64,64) (8, 698, 1, 128, 128, 6)#Step=64 for 64 patches means no overlap
         mask_patches = patchify(mask.astype(int), (64, 64), step=62)  # (4,4,4,64,64,64) (8, 698, 128, 128)
     elif patch_size==128:
+        print(f"Patch size = {patch_size}")
         # create smaller section per image 
         img_patches = patchify(image, (128, 128, 6), step=125)  # (4,4,4,64,64,64) (8, 698, 1, 128, 128, 6)#Step=64 for 64 patches means no overlap
         mask_patches = patchify(mask.astype(int), (128, 128), step=125)  # (4,4,4,64,64,64) (8, 698, 128, 128)
 
-    
+    print("Patches created...reshaping")
     input_img = np.reshape(img_patches, (-1, img_patches.shape[3], img_patches.shape[4], img_patches.shape[5])) #(64,64,64,64) (5584, 128, 128, 6)
     input_mask = np.reshape(mask_patches, (-1, mask_patches.shape[2], mask_patches.shape[3])) #(64,64,64,64) (5584, 128, 128)
     
     # convert to each channel to rgb for now...
+    print("Converting to rgb for now")
     train_img = np.stack((input_img,)*1, axis=-1) # (64,64,64,64,3) (5584, 128, 128, 6, 1)
     train_img = train_img / np.max(train_img) 
     train_mask = np.stack((input_mask,)*6, axis=-1) #(5584, 128, 128, 6)
     train_mask = np.expand_dims(train_mask, axis=4) # (64,64,64,64,1) (5584, 128, 128, 6, 1)
 
-    
+    print("Creating one-hot vectors")
     train_mask_cat = to_categorical(train_mask, num_classes=n_classes)
     X_train, X_test, y_train, y_test = train_test_split(train_img, train_mask_cat, test_size = 0.20, random_state = 10)
     
