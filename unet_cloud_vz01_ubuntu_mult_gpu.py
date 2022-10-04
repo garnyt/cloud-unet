@@ -229,12 +229,11 @@ def main_many_gpu(model_filename, data_filepath, checkpoint_dir, batch_size, epo
 
     start_time = time.time()
     
-    strategy = tf.distribute.MirroredStrategy(devices=["/GPU:1", "/GPU:2", "/GPU:3", "/GPU:4"])
+    strategy = tf.distribute.MirroredStrategy(devices=["/GPU:2", "/GPU:3", "/GPU:4", "/GPU:5"])
 
     n_classes, X_train, X_test, y_train, y_test = load_and_format_training_data(data_filepath, patch_size)
     print("Loaded data...")
-    
-    # reduce training data by removing duplicates
+    print("X train shape:", X_train.shape)
     
     BUFFER_SIZE = len(X_train)
 
@@ -243,8 +242,10 @@ def main_many_gpu(model_filename, data_filepath, checkpoint_dir, batch_size, epo
     
     EPOCHS = epochs
 
+    print("Creating tensors")
     train_dataset = tf.data.Dataset.from_tensor_slices((X_train, y_train)).shuffle(BUFFER_SIZE).batch(GLOBAL_BATCH_SIZE) 
     test_dataset = tf.data.Dataset.from_tensor_slices((X_test, y_test)).batch(GLOBAL_BATCH_SIZE) 
+    print("Tensors created")
     
     train_dist_dataset = strategy.experimental_distribute_dataset(train_dataset)
     test_dist_dataset = strategy.experimental_distribute_dataset(test_dataset)
