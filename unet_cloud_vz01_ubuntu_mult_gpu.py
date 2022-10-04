@@ -351,20 +351,27 @@ def main_many_gpu(model_filename, data_filepath, checkpoint_dir, batch_size, epo
 
 
 
-batches = [16, 32]
+
 data_filepath = '../scenes/'
 checkpoint_dir = '../models/'
 epochs = 50
-pathces = [64, 128]
+patch_size = 64
+batch_size = 16
 
-for batch_size in batches:
-    for patch_size in pathces:
+model_filename = f'../models/sparcs_3D_100epochs_{batch_size}bs_{patch_size}patch_4gpu.h5'
+model = main_many_gpu(model_filename, data_filepath, checkpoint_dir, batch_size, epochs, patch_size)
 
-        model_filename = f'../models/sparcs_3D_100epochs_{batch_size}bs_{patch_size}patch_4gpu.h5'
+# pathces = [64, 128]
+# batches = [16, 32]
+
+# for batch_size in batches:
+#     for patch_size in pathces:
+
+#         model_filename = f'../models/sparcs_3D_100epochs_{batch_size}bs_{patch_size}patch_4gpu.h5'
         
-        model = main_many_gpu(model_filename, data_filepath, checkpoint_dir, batch_size, epochs, patch_size)
+#         model = main_many_gpu(model_filename, data_filepath, checkpoint_dir, batch_size, epochs, patch_size)
         
-        print(f"{model_filename} saved")
+#         print(f"{model_filename} saved")
 
 
 
