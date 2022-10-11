@@ -21,6 +21,7 @@ from tensorflow.keras.layers import Activation, Concatenate, BatchNormalization,
 from tensorflow.keras.utils import to_categorical
 from tensorflow.keras import backend as K
 from tensorflow.keras.models import load_model
+import pdb
 
 from tensorflow.python.keras.losses import CategoricalCrossentropy
 from tensorflow.python.keras.metrics import CategoricalAccuracy
@@ -145,11 +146,11 @@ def load_training_data(filename):
 def apptemp(img,  band ='b10'):
     """Convert toa radiance to apparent temperature."""
     if band == 'b10':
-        K2 = 1321.0789;
-        K1 = 774.8853;
+        K2 = 1321.0789
+        K1 = 774.8853
     elif band == 'b11':
-        K2 = 1201.1442;
-        K1 = 480.8883;
+        K2 = 1201.1442
+        K1 = 480.8883
     else:
         print('call function with T = appTemp(radiance, band=\'b10\'')
         return
@@ -160,12 +161,12 @@ def apptemp(img,  band ='b10'):
 
 def load_and_format_training_data(filepath):
     """Load and format the training data into patches."""
-
+    
     cnt = 0
     for file in os.listdir(filepath):
         if '_data' in file:
             try:
-                filename = os.path.join(filepath, file)            
+                filename = os.path.join(filepath, file)
                 data, label, qmask, c1bqa, rgb = load_training_data(filename) 
                 
                 if cnt == 0:
@@ -195,7 +196,7 @@ def load_and_format_training_data(filepath):
     train_img = train_img / np.max(train_img) 
     train_mask = np.stack((input_mask,)*6, axis=-1)
     train_mask = np.expand_dims(train_mask, axis=4)
-
+    pdb.set_trace()
     # create one hot vectors
     train_mask_cat = to_categorical(train_mask, num_classes=n_classes)
     # split test and training set - 10%
@@ -230,8 +231,6 @@ def plotting_results(history):
     plt.ylabel('Accuracy')
     plt.legend()
     plt.show()
-
-    plt.savefig('../models/history_plot.png')
 
 
 def main_one_gpu(model_filename, data_filepath, batch_size, epochs):
@@ -276,7 +275,7 @@ def main_one_gpu(model_filename, data_filepath, batch_size, epochs):
 
 batch_size = 32
 epochs = 100
-data_filepath = '../scenes/'
+data_filepath = '../scenes_subset/'
 model_filename = f'../models/sparcs_3D_{epochs}epochs_{batch_size}bs_64patch_1gpu.h5'
 
 model, history = main_one_gpu(model_filename, data_filepath, batch_size, epochs)
