@@ -200,6 +200,8 @@ def load_and_format_training_data(filepath):
     input_img = np.reshape(img_patches, (-1, img_patches.shape[3], img_patches.shape[4], img_patches.shape[5]))
     input_mask = np.reshape(mask_patches, (-1, mask_patches.shape[2], mask_patches.shape[3]))
     
+    print("Input_img: ", input_img.shape)
+    
     # convert to each channel to rgb for now... this is how model works at the moment
     train_img = np.stack((input_img,)*1, axis=-1)
     train_img = train_img / np.max(train_img) 
@@ -209,6 +211,10 @@ def load_and_format_training_data(filepath):
     train_mask_cat = to_categorical(train_mask, num_classes=n_classes)
     # split test and training set - 10%
     X_train, X_test, y_train, y_test = train_test_split(train_img, train_mask_cat, test_size = 0.10, random_state = 0)
+    print("X_train: ", X_train.shape)
+    print("X_test: ", X_test.shape)
+    print("y_train: ", y_train.shape)
+    print("y_test: ", y_test.shape)
     
     return n_classes, X_train, X_test, y_train, y_test 
 
@@ -244,6 +250,7 @@ def plotting_results(history):
 def main_one_gpu(model_filename, data_filepath, batch_size, epochs):
     """Run application."""
 
+    print("batch_size: ", batch_size)
     start_time = time.time()
 
     n_classes, X_train, X_test, y_train, y_test = load_and_format_training_data(data_filepath)
@@ -251,6 +258,7 @@ def main_one_gpu(model_filename, data_filepath, batch_size, epochs):
     patches, patch_size_x, patch_size_y, patch_size_z, channels = X_train.shape
 
     input_shape = [patch_size_x, patch_size_y, patch_size_z, channels]
+    print("Input shape: ", input_shape)
 
     model = build_unet(input_shape, n_classes=n_classes)
 
@@ -281,7 +289,7 @@ def main_one_gpu(model_filename, data_filepath, batch_size, epochs):
     return model, history
 
 
-batch_size = 32
+batch_size = 8
 epochs = 100
 data_filepath = '../scenes/'
 model_filename = f'../models/sparcs_3D_{epochs}epochs_{batch_size}bs_64patch_1gpu.h5'
