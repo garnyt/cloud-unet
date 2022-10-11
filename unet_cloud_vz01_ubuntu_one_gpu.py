@@ -1,4 +1,10 @@
-"""Unet model to predict clouds using one GPU."""
+"""Unet model to predict clouds using one GPU.
+
+Data: Sparcs dataset. Download into '../scenes/'
+http://emapr.ceoas.oregonstate.edu/sparcs/sparcs_data_L8.zip
+
+Run code as is - or change filepaths / batch size / epochs below of main function
+"""
 import os
 import numpy as np
 import rasterio
