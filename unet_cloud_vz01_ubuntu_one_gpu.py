@@ -196,7 +196,6 @@ def load_and_format_training_data(filepath):
     train_img = train_img / np.max(train_img) 
     train_mask = np.stack((input_mask,)*6, axis=-1)
     train_mask = np.expand_dims(train_mask, axis=4)
-    pdb.set_trace()
     # create one hot vectors
     train_mask_cat = to_categorical(train_mask, num_classes=n_classes)
     # split test and training set - 10%
