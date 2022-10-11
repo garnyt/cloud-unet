@@ -88,7 +88,7 @@ def build_unet(input_shape, n_classes):
     else:
       activation = 'softmax'
     # Change the activation based on n_classes
-    outputs = Conv3D(n_classes, 1, padding="same", activation=activation)(d4)
+    outputs = Conv3D(n_classes, 1, padding="same", activation=activation)(d2)
     print(activation)
 
     model = Model(inputs, outputs, name="U-Net")

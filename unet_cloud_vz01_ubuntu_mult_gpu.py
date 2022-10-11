@@ -64,32 +64,32 @@ def decoder_block(input, skip_features, num_filters):
 def build_unet(input_shape, n_classes):
     inputs = Input(input_shape)
 
-    s1, p1 = encoder_block(inputs, 64)
-    s2, p2 = encoder_block(p1, 128)
-    s3, p3 = encoder_block(p2, 256)
-    s4, p4 = encoder_block(p3, 512)
-
-    b1 = conv_block(p4, 1024) #Bridge
-
-    d1 = decoder_block(b1, s4, 512)
-    d2 = decoder_block(d1, s3, 256)
-    d3 = decoder_block(d2, s2, 128)
-    d4 = decoder_block(d3, s1, 64)
-
     # s1, p1 = encoder_block(inputs, 64)
     # s2, p2 = encoder_block(p1, 128)
+    # s3, p3 = encoder_block(p2, 256)
+    # s4, p4 = encoder_block(p3, 512)
 
-    # b1 = conv_block(p2, 256) #Bridge
+    # b1 = conv_block(p4, 1024) #Bridge
 
-    # d3 = decoder_block(b1, s2, 128)
+    # d1 = decoder_block(b1, s4, 512)
+    # d2 = decoder_block(d1, s3, 256)
+    # d3 = decoder_block(d2, s2, 128)
     # d4 = decoder_block(d3, s1, 64)
+
+    s1, p1 = encoder_block(inputs, 64)
+    s2, p2 = encoder_block(p1, 128)
+
+    b1 = conv_block(p2, 256) #Bridge
+
+    d1 = decoder_block(b1, s2, 128)
+    d2 = decoder_block(d1, s1, 64)
 
     if n_classes == 1:  #Binary
       activation = 'sigmoid'
     else:
       activation = 'softmax'
 
-    outputs = Conv3D(n_classes, 1, padding="same", activation=activation)(d4)  #Change the activation based on n_classes
+    outputs = Conv3D(n_classes, 1, padding="same", activation=activation)(d2)  #Change the activation based on n_classes
     print(activation)
 
     model = Model(inputs, outputs, name="U-Net")
