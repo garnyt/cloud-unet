@@ -290,9 +290,9 @@ def main_one_gpu(model_filename, data_filepath, batch_size, epochs):
 
 
 batch_size = 8
-epochs = 100
-data_filepath = '../scenes/'
-model_filename = f'../models/sparcs_3D_{epochs}epochs_{batch_size}bs_64patch_1gpu.h5'
+epochs = 2
+data_filepath = '/home/tkleynhans/hydrosat/data/scenes_subset/'
+model_filename = f'/home/tkleynhans/hydrosat/data/models/sparcs_3D_{epochs}epochs_{batch_size}bs_64patch_1gpu.h5'
 
 model, history = main_one_gpu(model_filename, data_filepath, batch_size, epochs)
 

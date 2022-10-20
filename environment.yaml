@@ -4,10 +4,9 @@ channels:
 dependencies:
   # start app dependenceis
   - pip=22.1.2
-  - python=3.10.5
+  - python=3.9.13
   - numpy=1.23.3
   - scipy=1.9.1
-  - tensorflow=2.10.0
   - matplotlib=3.6.0
   - scikit-learn=1.1.2
   # stop app dependencies
@@ -16,4 +15,5 @@ dependencies:
     # start app dependencies
     - rasterio==1.3.2
     - patchify==0.2.3
+    # - tensorflow==2.9.1
     # stop app dependencies
