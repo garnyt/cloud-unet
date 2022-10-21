@@ -62,25 +62,25 @@ def build_unet(input_shape, n_classes):
     """Build Unet using the blocks."""
     inputs = Input(input_shape)
 
-    # s1, p1 = encoder_block(inputs, 64)
-    # s2, p2 = encoder_block(p1, 128)
-    # s3, p3 = encoder_block(p2, 256)
-    # s4, p4 = encoder_block(p3, 512)
+     s1, p1 = encoder_block(inputs, 64)
+     s2, p2 = encoder_block(p1, 128)
+     s3, p3 = encoder_block(p2, 256)
+     s4, p4 = encoder_block(p3, 512)
 
-    # b1 = conv_block(p4, 1024) #Bridge
+     b1 = conv_block(p4, 1024) #Bridge
 
-    # d1 = decoder_block(b1, s4, 512)
-    # d2 = decoder_block(d1, s3, 256)
-    # d3 = decoder_block(d2, s2, 128)
-    # d4 = decoder_block(d3, s1, 64)
+     d1 = decoder_block(b1, s4, 512)
+     d2 = decoder_block(d1, s3, 256)
+     d3 = decoder_block(d2, s2, 128)
+     d4 = decoder_block(d3, s1, 64)
     
-    s1, p1 = encoder_block(inputs, 64)
-    s2, p2 = encoder_block(p1, 128)
-
-    b1 = conv_block(p2, 256) #Bridge
-
-    d1 = decoder_block(b1, s2, 128)
-    d2 = decoder_block(d1, s1, 64)
+#    s1, p1 = encoder_block(inputs, 64)
+#    s2, p2 = encoder_block(p1, 128)
+#
+#    b1 = conv_block(p2, 256) #Bridge
+#
+#    d1 = decoder_block(b1, s2, 128)
+#    d2 = decoder_block(d1, s1, 64)
 
 
     if n_classes == 1:  #Binary
@@ -88,7 +88,7 @@ def build_unet(input_shape, n_classes):
     else:
       activation = 'softmax'
     # Change the activation based on n_classes
-    outputs = Conv3D(n_classes, 1, padding="same", activation=activation)(d2)
+    outputs = Conv3D(n_classes, 1, padding="same", activation=activation)(d4)
     print(activation)
 
     model = Model(inputs, outputs, name="U-Net")
@@ -168,7 +168,7 @@ def apptemp(img,  band ='b10'):
     return temperature
 
 
-def load_and_format_training_data(filepath):
+def load_and_format_training_data(filepath, patch):
     """Load and format the training data into patches."""
     
     cnt = 0
@@ -191,8 +191,8 @@ def load_and_format_training_data(filepath):
     n_classes = 7
 
     # create smaller section per image (patches)
-    img_patches = patchify(image, (64, 64, 6), step=62)  # Step=64 for 64 patches means no overlap
-    mask_patches = patchify(mask.astype(int), (64, 64), step=62)
+    img_patches = patchify(image, (patch, patch, 6), step=patch-10)  # Step=64 for 64 patches means no overlap
+    mask_patches = patchify(mask.astype(int), (patch, patch), step=patch-10)
 
     # img_patches = patchify(image, (128, 128, 6), step=109)
     # mask_patches = patchify(mask.astype(int), (128, 128), step=109)
@@ -201,6 +201,12 @@ def load_and_format_training_data(filepath):
     input_mask = np.reshape(mask_patches, (-1, mask_patches.shape[2], mask_patches.shape[3]))
     
     print("Input_img: ", input_img.shape)
+    
+    for i in range(input_img.shape[3]):
+        
+        max_training = np.max(input_img[:,:,:,i])
+        input_img[:,:,:,i] = input_img[:,:,:,i] / max_training 
+        print(f"The max val for band {i} is {max_training}.")
     
     # convert to each channel to rgb for now... this is how model works at the moment
     train_img = np.stack((input_img,)*1, axis=-1)
@@ -253,7 +259,7 @@ def main_one_gpu(model_filename, data_filepath, batch_size, epochs):
     print("batch_size: ", batch_size)
     start_time = time.time()
 
-    n_classes, X_train, X_test, y_train, y_test = load_and_format_training_data(data_filepath)
+    n_classes, X_train, X_test, y_train, y_test = load_and_format_training_data(data_filepath, patch)
     
     patches, patch_size_x, patch_size_y, patch_size_z, channels = X_train.shape
 
@@ -289,12 +295,13 @@ def main_one_gpu(model_filename, data_filepath, batch_size, epochs):
     return model, history
 
 
-batch_size = 8
-epochs = 2
+batch_size = 16
+epochs = 100
+patch = 128
 data_filepath = '/home/tkleynhans/hydrosat/data/scenes_subset/'
-model_filename = f'/home/tkleynhans/hydrosat/data/models/sparcs_3D_{epochs}epochs_{batch_size}bs_64patch_1gpu.h5'
+model_filename = f'/home/tkleynhans/hydrosat/data/models/sparcs_3D_{epochs}epochs_{batch_size}bs_{patch}patch_1gpu.h5'
 
-model, history = main_one_gpu(model_filename, data_filepath, batch_size, epochs)
+model, history = main_one_gpu(model_filename, data_filepath, batch_size, epochs, patch)
 
 
 

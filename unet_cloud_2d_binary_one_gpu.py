@@ -8,8 +8,6 @@ import os
 import numpy as np
 import rasterio
 import time
-import matplotlib
-matplotlib.use('TKAgg')
 import matplotlib.pyplot as plt
 from patchify import patchify, unpatchify
 from sklearn.model_selection import train_test_split
@@ -21,7 +19,7 @@ from tensorflow.python.keras.metrics import BinaryAccuracy
 from tensorflow.keras.optimizers import Adam
 
 
-def load_training_data(filename):
+def load_training_data(filename, max_training=0):
     """Read bands similar to VZ01.
 
     Args:
@@ -80,6 +78,10 @@ def load_training_data(filename):
     rgb[:,:,2] = B/np.nanmax(B)
     rgb = rgb *1.5
     
+    if max_training != 0:
+        for i in range(data.shape[2]):
+            data[:,:,i] = data[:,:,i] / max_training[i] 
+    
     return data, label, qmask, c1bqa, rgb    
 
 
@@ -129,6 +131,7 @@ def load_and_format_training_data(filepath, classification, xy=64, steps=64):
             except:
                 pass
     
+    print(f"Number of scenes: {cnt}")
              # (256,256,256) # (1000,79000)
     
     n_classes = 2 #np.unique(mask).shape[0]
@@ -140,12 +143,15 @@ def load_and_format_training_data(filepath, classification, xy=64, steps=64):
     input_img = np.reshape(img_patches, (-1, img_patches.shape[3], img_patches.shape[4], img_patches.shape[5]))
     input_mask = np.reshape(mask_patches, (-1, mask_patches.shape[2], mask_patches.shape[3]))
 
-    max_training = np.max(input_img)
-    train_img = input_img / max_training 
+    for i in range(input_img.shape[3]):
+        
+        max_training = np.max(input_img[:,:,:,i])
+        input_img[:,:,:,i] = input_img[:,:,:,i] / max_training 
+        print(f"The max val for band {i} is {max_training}.")
 
-    X_train, X_test, y_train, y_test = train_test_split(train_img, input_mask, test_size = 0.10, random_state = 2)
+    X_train, X_test, y_train, y_test = train_test_split(input_img, input_mask, test_size = 0.10, random_state = 2)
 
-    return n_classes, X_train, X_test, y_train, y_test, max_training 
+    return n_classes, X_train, X_test, y_train, y_test 
 
 
 def conv_block(input, num_filters):
@@ -234,10 +240,11 @@ def plotting_results(history):
     plt.show()
 
 
-def plot_full_scene(model, test_filename, xy=64, max_training=255):
+def plot_full_scene(model, test_filename, xy=64):
     """Predict feature from full scene input."""
+    max_training = [1.15746, 1.19478, 1.2107, 1.18746, 0.11772000000000002, 21.065831035179713]
     #Break the large image (volume) into patches of same size as the training images (patches)
-    full_image, label, qmask, c1bqa, rgb = load_training_data(test_filename)
+    full_image, label, qmask, c1bqa, rgb = load_training_data(test_filename, max_training)
     
     boundary = 5
     steps = xy - (boundary * 2)  # to be able to remove boundary created by padding
@@ -316,7 +323,7 @@ def main(model_filename, data_filepath, batch_size, epochs, classification, xy, 
     print("batch_size: ", batch_size)
     start_time = time.time()
 
-    n_classes, X_train, X_test, y_train, y_test, max_training = load_and_format_training_data(data_filepath, classification, xy, steps)
+    n_classes, X_train, X_test, y_train, y_test = load_and_format_training_data(data_filepath, classification, xy, steps)
     
     patches, patch_size_x, patch_size_y, channels = X_train.shape
 
@@ -349,24 +356,24 @@ def main(model_filename, data_filepath, batch_size, epochs, classification, xy, 
 
     plotting_results(history)
 
-    return model, history, max_training
+    return model, history
 
 
 if __name__ == "__main__":
     batch_size = 8
     epochs = 100
     xy = 64
-    steps = 50
+    steps = 50 # if steps are same as xy, then patches will have no overlap.This is not neccesary, but overlap creates more data to train on.
     classification = 'snow'  # 'cloud', 'shadow'
     data_filepath = '/home/tkleynhans/hydrosat/data/scenes_subset/'
     model_filepath = '/home/tkleynhans/hydrosat/data/models'
-    model_fname = f'sparcs_2D_{epochs}epochs_{batch_size}bs_64patch_{classification}_{xy}patch_{steps}step_1gpu.h5'
+    model_fname = f'sparcs_2D_{epochs}epochs_{batch_size}bs_{classification}_{xy}patch_{steps}step_1gpu.h5'
     model_filename = os.path.join(model_filepath, model_fname)
 
     model, history, max_training = main(model_filename, data_filepath, batch_size, epochs, classification, xy, steps)
     
     # testing on full scene
-    scene = "LC81480352013195LGN00_32_data.tif"
+    scene = "LC81480352013195LGN00_32_data.tif" # snow scene
     # model = load_model(model_filename, compile=False)
     filepath = '/home/tkleynhans/hydrosat/data/scenes/'
     test_filename = os.path.join(filepath, scene)
