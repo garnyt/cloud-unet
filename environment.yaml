@@ -9,6 +9,7 @@ dependencies:
   - scipy=1.9.1
   - matplotlib=3.6.0
   - scikit-learn=1.1.2
+  - gdal=3.5.0
   # stop app dependencies
 
   - pip:

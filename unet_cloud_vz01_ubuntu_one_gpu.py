@@ -21,6 +21,7 @@ from tensorflow.keras.layers import Activation, Concatenate, BatchNormalization,
 from tensorflow.keras.utils import to_categorical
 from tensorflow.keras import backend as K
 from tensorflow.keras.models import load_model
+from sklearn.metrics import classification_report
 import pdb
 
 from tensorflow.python.keras.losses import CategoricalCrossentropy
@@ -62,17 +63,17 @@ def build_unet(input_shape, n_classes):
     """Build Unet using the blocks."""
     inputs = Input(input_shape)
 
-     s1, p1 = encoder_block(inputs, 64)
-     s2, p2 = encoder_block(p1, 128)
-     s3, p3 = encoder_block(p2, 256)
-     s4, p4 = encoder_block(p3, 512)
-
-     b1 = conv_block(p4, 1024) #Bridge
-
-     d1 = decoder_block(b1, s4, 512)
-     d2 = decoder_block(d1, s3, 256)
-     d3 = decoder_block(d2, s2, 128)
-     d4 = decoder_block(d3, s1, 64)
+    s1, p1 = encoder_block(inputs, 64)
+    s2, p2 = encoder_block(p1, 128)
+    s3, p3 = encoder_block(p2, 256)
+    s4, p4 = encoder_block(p3, 512)
+    
+    b1 = conv_block(p4, 1024) #Bridge
+    
+    d1 = decoder_block(b1, s4, 512)
+    d2 = decoder_block(d1, s3, 256)
+    d3 = decoder_block(d2, s2, 128)
+    d4 = decoder_block(d3, s1, 64)
     
 #    s1, p1 = encoder_block(inputs, 64)
 #    s2, p2 = encoder_block(p1, 128)
@@ -253,6 +254,15 @@ def plotting_results(history):
     plt.show()
 
 
+def display_per_class_accuracy(model, X_test, y_test):
+    
+    Y_test = np.argmax(y_test, axis=4) # Convert one-hot to index
+    y_pred = model.predict(X_test)
+    test_prediction = np.argmax(y_pred, axis=4)
+    
+    print(classification_report(Y_test.flatten(), test_prediction.flatten()))
+
+
 def main_one_gpu(model_filename, data_filepath, batch_size, epochs):
     """Run application."""
 
@@ -301,9 +311,11 @@ patch = 128
 data_filepath = '/home/tkleynhans/hydrosat/data/scenes_subset/'
 model_filename = f'/home/tkleynhans/hydrosat/data/models/sparcs_3D_{epochs}epochs_{batch_size}bs_{patch}patch_1gpu.h5'
 
-model, history = main_one_gpu(model_filename, data_filepath, batch_size, epochs, patch)
+#model, history = main_one_gpu(model_filename, data_filepath, batch_size, epochs, patch)
 
-
+model_filename = '/home/tkleynhans/hydrosat/data/models/sparcs_3D_100epochs_32bs_128patch_1gpu.h5'
+model = load_model(model_filename, compile=False)
+display_per_class_accuracy(model, X_test, y_test)
 
 
 
