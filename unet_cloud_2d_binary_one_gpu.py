@@ -9,30 +9,27 @@ import numpy as np
 import rasterio
 import time
 import matplotlib.pyplot as plt
-from patchify import patchify, unpatchify
+from patchify import patchify
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report
 from tensorflow.keras.layers import Conv2D, BatchNormalization, Activation, MaxPool2D, Conv2DTranspose, Concatenate, Input
 from tensorflow.keras.models import Model, load_model
-from tensorflow.keras.utils import to_categorical
+
 from tensorflow.python.keras.losses import BinaryCrossentropy
 from tensorflow.python.keras.metrics import BinaryAccuracy
 from tensorflow.keras.optimizers import Adam
-from osgeo import gdal, gdalconst
 
 
-def load_training_data(filename, bands):
+def load_training_data(filename):
     """Read bands similar to VZ01.
 
     Args:
         filename (str): 
     """
-    
-
     src = rasterio.open(filename)
     img = src.read(1)
     
-    data = np.empty([img.shape[0],img.shape[1],bands])
+    data = np.empty([img.shape[0],img.shape[1],5])
 
     img = src.read(2) # blue
     data[:,:,0] = img * 2.0000E-05 - 0.100000
@@ -42,19 +39,15 @@ def load_training_data(filename, bands):
     data[:,:,2] = img * 2.0000E-05 - 0.100000
     img = src.read(5) # NIR (similar to band 7 of VZ01 vnir)
     data[:,:,3] = img * 2.0000E-05 - 0.100000
-    img = src.read(10)
-    mask = img
+    img = src.read(9)
+    mask = np.copy(img)
     img = img * 3.3420E-04 + 0.1
+    data[:,:,4] = apptemp(img,  band ='b10')
     
-    mask[mask < 1] = 0
+    mask[mask < 0] = 0
     mask[mask > 0] = 1
+
     
-    if bands == 6:
-        img = src.read(8) # pan band
-        data[:,:,4] = img * 2.0000E-05 - 0.100000
-        data[:,:,5] = apptemp(img,  band ='b10')
-    else:
-        data[:,:,4] = apptemp(img,  band ='b10')
     
     for band in range(data.shape[2]):
         data[:,:,band] = data[:,:,band] * mask
@@ -86,10 +79,8 @@ def load_training_data(filename, bands):
     rgb = rgb *1.5
     
     # normalize data with values accross all scenes (subset max values skews data)
-    if bands == 6:
-        max_training = [1.2107, 1.2107, 1.2107, 1.2107, 1.03068, 91.33669913673828]
-    else:
-        max_training = [1.2107, 1.2107, 1.2107, 1.2107, 91.33669913673828]
+
+    max_training = [1.2107, 1.2107, 1.2107, 1.2107, 91.33669913673828]
     
     for i in range(data.shape[2]):
         data[:,:,i] = data[:,:,i] / max_training[i] 
@@ -114,7 +105,7 @@ def apptemp(img,  band ='b10'):
     return temperature
 
 
-def load_and_format_training_data(filepath, classification, xy=64, steps=64, bands=6):
+def load_and_format_training_data(filepath, classification, xy=64, steps=64):
     """Load training data and convert to correct format."""
     if classification == 'snow':
         class_num = [3]
@@ -129,7 +120,7 @@ def load_and_format_training_data(filepath, classification, xy=64, steps=64, ban
         if '_data' in file:
             try:
                 filename = os.path.join(filepath, file)            
-                data, label, qmask, c1bqa, rgb = load_training_data(filename, bands) 
+                data, label, qmask, c1bqa, rgb = load_training_data(filename) 
                 # mask_label = np.copy(label)
                 for idx in class_num:
                     label[label == idx] = 10
@@ -153,7 +144,7 @@ def load_and_format_training_data(filepath, classification, xy=64, steps=64, ban
     n_classes = 2 #np.unique(mask).shape[0]
     
     # create smaller section per image 
-    img_patches = patchify(image, (xy, xy, bands), step=steps)  # Step=64 for 64 patches means no overlap
+    img_patches = patchify(image, (xy, xy, 5), step=steps)  # Step=64 for 64 patches means no overlap
     mask_patches = patchify(mask.astype(int), (xy, xy), step=steps)
 
     input_img = np.reshape(img_patches, (-1, img_patches.shape[3], img_patches.shape[4], img_patches.shape[5]))
@@ -268,12 +259,19 @@ def plotting_results(history):
     plt.show()
 
 
-def plot_full_scene(model, test_filename, xy=64, bands = 6):
+def plot_full_scene(model, test_filename, xy):
     """Predict feature from full scene input."""
     #Break the large image (volume) into patches of same size as the training images (patches)
-    full_image, label, qmask, c1bqa, rgb = load_training_data(test_filename, bands = 6)
+    full_image, label, qmask, c1bqa, rgb = load_training_data(test_filename)
     
-    boundary = 5
+    plt.subplot(1,3,1)
+    plt.imshow(full_image[:,:,4])
+    plt.subplot(1,3,2)
+    plt.imshow(rgb)
+    plt.subplot(1,3,3)
+    plt.imshow(data[:,:,4])
+    
+    boundary = 4
     steps = xy - (boundary * 2)  # to be able to remove boundary created by padding
     patches = patchify(full_image, (xy, xy, 6), step=steps)  #Step=256 for 256 patches means no overlap
     # patches_new = np.reshape(patches, (-1, patches.shape[3], patches.shape[4], patches.shape[5]))
@@ -302,7 +300,7 @@ def plot_full_scene(model, test_filename, xy=64, bands = 6):
             j_start_col = j_start_col + steps
         i_start_row = i_start_row + steps     
     
-    fig = plt.figure()
+    plt.figure()
     plt.subplot(2,3,1)
     plt.imshow(rgb)
     plt.axis('off')
@@ -314,7 +312,7 @@ def plot_full_scene(model, test_filename, xy=64, bands = 6):
     plt.title('Truth classification')
     plt.show()
     plt.subplot(2,3,3)
-    ax2 = plt.imshow(reconstructed_image) #, cmap='Dark2', vmin=0, vmax=7)
+    plt.imshow(reconstructed_image) #, cmap='Dark2', vmin=0, vmax=7)
     plt.axis('off')
     plt.title('Predicted classification')
     plt.colorbar()
@@ -342,43 +340,10 @@ def plot_full_scene(model, test_filename, xy=64, bands = 6):
     plt.show()
 
 
-def stackImg1Img2(img1_filename, img2_filename, dst_filename):
-    
-    #img1 = geotif image which resolution you want to keep
-    #img2 = geotif image to be resampled and matched to img1 - this will be the output image
-    
-    # Source
-    src_filename = img2_filename
-    src = gdal.Open(src_filename, gdalconst.GA_ReadOnly)
-    src_proj = src.GetProjection()
-    #src_geotrans = src.GetGeoTransform()
-    
-    # We want a section of source that matches this:
-    match_filename = img1_filename
-    match_ds = gdal.Open(match_filename, gdalconst.GA_ReadOnly)
-    match_proj = match_ds.GetProjection()
-    match_geotrans = match_ds.GetGeoTransform()
-    wide = match_ds.RasterXSize
-    high = match_ds.RasterYSize
-    
-    try:
-        dst = gdal.GetDriverByName('GTiff').Create(dst_filename, wide, high, 5, gdalconst.GDT_Float32)
-        dst.SetGeoTransform( match_geotrans )
-        dst.SetProjection(match_proj)
-        # Do the work
-        gdal.ReprojectImage(src, dst, src_proj, match_proj, gdalconst.GRA_Bilinear)
-        
-        del dst # Flush
-        
-    except:
-        pass
-
-
-def plot_predict_new_scene(model, test_filename, xy=64, bands=6):
+def plot_predict_new_scene(model, test_filename, xy=64):
     """Predict feature from full scene input."""
     
     src = rasterio.open(test_filename)
-    base_filename = test_filename
     img = src.read(1)
     
     data = np.empty([img.shape[0],img.shape[1],6])
@@ -404,32 +369,24 @@ def plot_predict_new_scene(model, test_filename, xy=64, bands=6):
             src = rasterio.open(test_filename)
             img = src.read(1) # NIR (similar to band 7 of VZ01 vnir)
             data[:,:,3] = img.astype(float) * 2.0000E-05 - 0.100000
-        if bands==6:
-            if "_B8.TIF" in file:
-                # resample data to 30 m landsat file
-                test_filename = os.path.join(os.path.dirname(test_filename), file)
-                dst_filename = test_filename[0:-4] + "_resampled.TIF"
-                stackImg1Img2(base_filename, test_filename, dst_filename)
-                src = rasterio.open(dst_filename)
-                img = src.read(1) # pan band
-                data[:,:,4] = img.astype(float) * 2.0000E-05 - 0.100000
-            if "_B10" in file:
-                test_filename = os.path.join(os.path.dirname(test_filename), file)
-                src = rasterio.open(test_filename)
-                img = src.read(1) # thermal
-                img = img.astype(float) * 3.3420E-04 + 0.1
-                data[:,:,5] = apptemp(img,  band ='b10')
-        else:
-            if "_B10" in file:
-                test_filename = os.path.join(os.path.dirname(test_filename), file)
-                src = rasterio.open(test_filename)
-                img = src.read(1) # thermal
-                img = img.astype(float) * 3.3420E-04 + 0.1
-                data[:,:,4] = apptemp(img,  band ='b10')
-            
-    rgb = data[:,:,0:3] *1.5
+        if "_B10" in file:
+            test_filename = os.path.join(os.path.dirname(test_filename), file)
+            src = rasterio.open(test_filename)
+            img = src.read(1) # thermal
+            img = img.astype(float) * 3.3420E-04 + 0.1
+            data[:,:,4] = apptemp(img,  band ='b10')
+            mask = np.copy(img)
+            mask[mask < 0] = 0
+            mask[mask > 0] = 1
+     
+    rgb = data[:,:,0:3] *1.5           
+    # normalize data with values accross all scenes (subset max values skews data)
+    max_training = [1.2107, 1.2107, 1.2107, 1.2107, 91.33669913673828]
     
-    boundary = 5
+    for i in range(data.shape[2]):
+        data[:,:,i] = data[:,:,i] / max_training[i] 
+    
+    boundary = 10
     steps = xy - (boundary * 2)  # to be able to remove boundary created by padding
     patches = patchify(data, (xy, xy, bands), step=steps)  #Step=256 for 256 patches means no overlap
     # patches_new = np.reshape(patches, (-1, patches.shape[3], patches.shape[4], patches.shape[5]))
@@ -437,7 +394,7 @@ def plot_predict_new_scene(model, test_filename, xy=64, bands=6):
     print(data.shape)
     print(patches.shape)
     # print(patches_new.shape)
-    
+
     reconstructed_image = np.zeros((data.shape[0], data.shape[1]))
     
     i_start_row = boundary
@@ -476,6 +433,8 @@ def plot_predict_new_scene(model, test_filename, xy=64, bands=6):
     plt.axis('off')
     plt.title('Threshold = 0.85')
     plt.show()
+    
+    return data, reconstructed_image
 
 
 def display_per_class_accuracy(model, X_test, y_test):
@@ -486,13 +445,13 @@ def display_per_class_accuracy(model, X_test, y_test):
     
     print(classification_report(y_test.flatten(), y_pred.flatten()))
 
-def main(model_filename, data_filepath, batch_size, epochs, classification, xy, steps, bands, block):
+def main(model_filename, data_filepath, batch_size, epochs, classification, xy, steps, block):
     """Run application."""
 
     print("batch_size: ", batch_size)
     start_time = time.time()
 
-    n_classes, X_train, X_test, y_train, y_test = load_and_format_training_data(data_filepath, classification, xy, steps, bands)
+    n_classes, X_train, X_test, y_train, y_test = load_and_format_training_data(data_filepath, classification, xy, steps)
     
     patches, patch_size_x, patch_size_y, channels = X_train.shape
 
@@ -533,7 +492,6 @@ def main(model_filename, data_filepath, batch_size, epochs, classification, xy, 
 if __name__ == "__main__":
     batch_size = 32
     epochs = 50
-    bands = 5  # number of bands to use for training (6 includes Pan band)
     block = 3  # number of encoder-decoder blocks
     xy = 64  # patch size (larger needs more memory)
     steps = 50 # if steps are same as xy, then patches will have no overlap. This is not neccesary, but overlap creates more data to train on.
@@ -545,9 +503,9 @@ if __name__ == "__main__":
     if run_model == 1:
         data_filepath = '/home/tkleynhans/hydrosat/data/scenes/'
         model_filepath = '/home/tkleynhans/hydrosat/data/models'
-        model_fname = f'sparcs_2D_{epochs}epochs_{batch_size}bs_{classification}_{xy}patch_{steps}step_{bands}bands_{blocks}blocks_1gpu.h5'
+        model_fname = f'sparcs_2D_{epochs}epochs_{batch_size}bs_{classification}_{xy}patch_{steps}step_{block}blocks_1gpu.h5'
         model_filename = os.path.join(model_filepath, model_fname)
-        model, history = main(model_filename, data_filepath, batch_size, epochs, classification, xy, steps, bands, block)
+        model, history = main(model_filename, data_filepath, batch_size, epochs, classification, xy, steps, block)
     
     if test_full_scene == 1:
         # testing on full scene
@@ -563,10 +521,11 @@ if __name__ == "__main__":
         start_time = time.time()
         model_filename = '/home/tkleynhans/hydrosat/data/models/sparcs_2D_100epochs_32bs_64patch_snow_64patch_50step_1gpu.h5'
         model = load_model(model_filename, compile=False)
-        scene = "LC08_L1TP_016030_20160303_20200907_02_T1_B1.TIF"
-        filepath = '/home/tkleynhans/hydrosat/data/landsat/LC08_L1TP_016030_20160303_20200907_02_T1'
+        # scene = "LC08_L1TP_034033_20160301_20200907_02_T1_B1.TIF"
+        scene = "LC08_L1TP_148035_20130714_20170503_01_T1_B9.TIF"
+        filepath = '/home/tkleynhans/hydrosat/data/landsat/LC08_L1TP_148035_20130714_20170503_01_T1'
         test_filename = os.path.join(filepath, scene)
-        plot_predict_new_scene(model, test_filename, xy=64, bands=5)
+        data, reconstructed_image = plot_predict_new_scene(model, test_filename, xy)
         end_time = time.time()
         print('Total time in min: ',(end_time - start_time)/60)
     
