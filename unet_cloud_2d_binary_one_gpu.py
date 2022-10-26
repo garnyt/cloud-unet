@@ -105,7 +105,7 @@ def apptemp(img,  band ='b10'):
     return temperature
 
 
-def load_and_format_training_data(filepath, classification, xy=64, steps=64):
+def load_and_format_training_data(filepath, test_scenes, classification, xy=64, steps=64):
     """Load training data and convert to correct format."""
     if classification == 'snow':
         class_num = [3]
@@ -117,7 +117,7 @@ def load_and_format_training_data(filepath, classification, xy=64, steps=64):
     cnt = 0
     # plt.figure()
     for file in os.listdir(filepath):
-        if '_data' in file:
+        if '_data' in file and test_scenes[0] not in file and test_scenes[1] not in file:
             try:
                 filename = os.path.join(filepath, file)            
                 data, label, qmask, c1bqa, rgb = load_training_data(filename) 
@@ -445,13 +445,13 @@ def display_per_class_accuracy(model, X_test, y_test):
     
     print(classification_report(y_test.flatten(), y_pred.flatten()))
 
-def main(model_filename, data_filepath, batch_size, epochs, classification, xy, steps, block):
+def main(model_filename, data_filepath, test_scenes, batch_size, epochs, classification, xy, steps, block):
     """Run application."""
 
     print("batch_size: ", batch_size)
     start_time = time.time()
 
-    n_classes, X_train, X_test, y_train, y_test = load_and_format_training_data(data_filepath, classification, xy, steps)
+    n_classes, X_train, X_test, y_train, y_test = load_and_format_training_data(data_filepath, test_scenes, classification, xy, steps)
     
     patches, patch_size_x, patch_size_y, channels = X_train.shape
 
@@ -499,13 +499,14 @@ if __name__ == "__main__":
     test_full_scene = 0
     test_outside_scene = 0
     run_model = 1
+    test_scenes = ['LC82010332014105LGN00_34', 'LC81480352013195LGN00_32']
     
     if run_model == 1:
         data_filepath = '/home/tkleynhans/hydrosat/data/scenes/'
         model_filepath = '/home/tkleynhans/hydrosat/data/models'
         model_fname = f'sparcs_2D_{epochs}epochs_{batch_size}bs_{classification}_{xy}patch_{steps}step_{block}blocks_1gpu.h5'
         model_filename = os.path.join(model_filepath, model_fname)
-        model, history = main(model_filename, data_filepath, batch_size, epochs, classification, xy, steps, block)
+        model, history = main(model_filename, data_filepath, test_scenes, batch_size, epochs, classification, xy, steps, block)
     
     if test_full_scene == 1:
         # testing on full scene
