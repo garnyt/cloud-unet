@@ -484,51 +484,60 @@ def main(model_filename, data_filepath, test_scenes, batch_size, epochs, classif
     # save model
     model.save(model_filename)
 
-    plotting_results(history)
+    # plotting_results(history)
 
     return model, history
 
 
 if __name__ == "__main__":
-    batch_size = 32
-    epochs = 50
-    block = 3  # number of encoder-decoder blocks
-    xy = 64  # patch size (larger needs more memory)
-    steps = 50 # if steps are same as xy, then patches will have no overlap. This is not neccesary, but overlap creates more data to train on.
-    classification = 'snow'  # 'cloud', 'shadow'
+    batch_size = [16, 32, 64]
+    epochs = 1
+    block = [2, 3, 4]  # number of encoder-decoder blocks
+    patches = [64, 128, 256]  # patch size (larger needs more memory)
+    # steps = 50 # if steps are same as xy, then patches will have no overlap. This is not neccesary, but overlap creates more data to train on.
+    classification = ['snow', 'cloud', 'shadow']
     test_full_scene = 0
     test_outside_scene = 0
     run_model = 1
     test_scenes = ['LC82010332014105LGN00_34', 'LC81480352013195LGN00_32']
     
+    cnt = 0
     if run_model == 1:
-        data_filepath = '/home/tkleynhans/hydrosat/data/scenes/'
+        data_filepath = '/home/tkleynhans/hydrosat/data/scenes_subset/'
         model_filepath = '/home/tkleynhans/hydrosat/data/models'
-        model_fname = f'sparcs_2D_{epochs}epochs_{batch_size}bs_{classification}_{xy}patch_{steps}step_{block}blocks_1gpu.h5'
-        model_filename = os.path.join(model_filepath, model_fname)
-        model, history = main(model_filename, data_filepath, test_scenes, batch_size, epochs, classification, xy, steps, block)
+        for bs in batch_size:
+            for bl in block:
+                for cl in classification:
+                    for patch in patches:
+                        steps = patch - 10
+                        model_fname = f'sparcs_2D_{epochs}epochs_{bs}bs_{cl}_{patch}patch_{bl}blocks_1gpu.h5'
+                        print(model_fname)
+                        cnt += 1
+                        
+                        model_filename = os.path.join(model_filepath, model_fname)
+                        model, history = main(model_filename, data_filepath, test_scenes, bs, epochs, cl, patch, steps, bl)
     
-    if test_full_scene == 1:
-        # testing on full scene
-        scene = "LC81480352013195LGN00_32_data.tif" # snow scene
-        model_filename = '/home/tkleynhans/hydrosat/data/models/sparcs_2D_100epochs_32bs_64patch_snow_64patch_50step_1gpu.h5'
-        model = load_model(model_filename, compile=False)
-        filepath = '/home/tkleynhans/hydrosat/data/scenes/'
-        test_filename = os.path.join(filepath, scene)
-        plot_full_scene(model, test_filename, xy)
-    
-    if test_outside_scene == 1:
-        # test on scene not part of sparcs
-        start_time = time.time()
-        model_filename = '/home/tkleynhans/hydrosat/data/models/sparcs_2D_100epochs_32bs_64patch_snow_64patch_50step_1gpu.h5'
-        model = load_model(model_filename, compile=False)
-        # scene = "LC08_L1TP_034033_20160301_20200907_02_T1_B1.TIF"
-        scene = "LC08_L1TP_148035_20130714_20170503_01_T1_B9.TIF"
-        filepath = '/home/tkleynhans/hydrosat/data/landsat/LC08_L1TP_148035_20130714_20170503_01_T1'
-        test_filename = os.path.join(filepath, scene)
-        data, reconstructed_image = plot_predict_new_scene(model, test_filename, xy)
-        end_time = time.time()
-        print('Total time in min: ',(end_time - start_time)/60)
+#    if test_full_scene == 1:
+#        # testing on full scene
+#        scene = "LC81480352013195LGN00_32_data.tif" # snow scene
+#        model_filename = '/home/tkleynhans/hydrosat/data/models/sparcs_2D_100epochs_32bs_64patch_snow_64patch_50step_1gpu.h5'
+#        model = load_model(model_filename, compile=False)
+#        filepath = '/home/tkleynhans/hydrosat/data/scenes/'
+#        test_filename = os.path.join(filepath, scene)
+#        plot_full_scene(model, test_filename, patches)
+#    
+#    if test_outside_scene == 1:
+#        # test on scene not part of sparcs
+#        start_time = time.time()
+#        model_filename = '/home/tkleynhans/hydrosat/data/models/sparcs_2D_100epochs_32bs_64patch_snow_64patch_50step_1gpu.h5'
+#        model = load_model(model_filename, compile=False)
+#        # scene = "LC08_L1TP_034033_20160301_20200907_02_T1_B1.TIF"
+#        scene = "LC08_L1TP_148035_20130714_20170503_01_T1_B9.TIF"
+#        filepath = '/home/tkleynhans/hydrosat/data/landsat/LC08_L1TP_148035_20130714_20170503_01_T1'
+#        test_filename = os.path.join(filepath, scene)
+#        data, reconstructed_image = plot_predict_new_scene(model, test_filename, xy)
+#        end_time = time.time()
+#        print('Total time in min: ',(end_time - start_time)/60)
     
     
     
