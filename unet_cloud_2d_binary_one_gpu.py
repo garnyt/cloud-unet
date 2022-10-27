@@ -491,10 +491,9 @@ def main(model_filename, data_filepath, test_scenes, batch_size, epochs, classif
 
 if __name__ == "__main__":
     batch_size = [16, 32, 64]
-    epochs = 1
+    epochs = 80
     block = [2, 3, 4]  # number of encoder-decoder blocks
     patches = [64, 128, 256]  # patch size (larger needs more memory)
-    # steps = 50 # if steps are same as xy, then patches will have no overlap. This is not neccesary, but overlap creates more data to train on.
     classification = ['snow', 'cloud', 'shadow']
     test_full_scene = 0
     test_outside_scene = 0
