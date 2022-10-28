@@ -491,10 +491,10 @@ def main(model_filename, data_filepath, test_scenes, batch_size, epochs, classif
 
 if __name__ == "__main__":
     epochs = 80
-    batch_size = [16, 32, 64]
-    block = [2, 3, 4]  # number of encoder-decoder blocks
-    patches = [64, 128, 256]  # patch size (larger needs more memory)
-    classification = ['snow', 'cloud', 'shadow']
+    batch_size = [64]
+    block = [2, 4]  # number of encoder-decoder blocks
+    patches = [64, 128]  # patch size (larger needs more memory)
+    classification = ['cloud']  #['snow', 'cloud', 'shadow']
     test_full_scene = 0
     test_outside_scene = 0
     run_model = 1
