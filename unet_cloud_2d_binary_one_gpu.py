@@ -47,8 +47,6 @@ def load_training_data(filename):
     mask[mask < 0] = 0
     mask[mask > 0] = 1
 
-    
-    
     for band in range(data.shape[2]):
         data[:,:,band] = data[:,:,band] * mask
 
@@ -80,10 +78,14 @@ def load_training_data(filename):
     
     # normalize data with values accross all scenes (subset max values skews data)
 
-    max_training = [1.2107, 1.2107, 1.2107, 1.2107, 91.33669913673828]
-    
-    for i in range(data.shape[2]):
+     # normalize data with values accross all scenes (subset max values skews data)
+    max_training = [1.2107, 1.2107, 1.2107, 1.2107]
+
+    for i in range(data.shape[2]-1):
         data[:,:,i] = data[:,:,i] / max_training[i] 
+    # stretch temperature data (Kelvin)
+    data[:,:,4] = (330 - data[:,:,4]) / (330-200)
+    data[:,:,4][data[:,:,4] < 0] = 0
     
     return data, label, qmask, c1bqa, rgb    
 
@@ -101,7 +103,7 @@ def apptemp(img,  band ='b10'):
         print('call function with T = appTemp(radiance, band=\'b10\'')
         return
     temperature = np.divide(K2,(np.log(np.divide(K1,np.array(img)) + 1)))
-    temperature = temperature - 273.15  # convert to C
+ 
     return temperature
 
 
@@ -490,11 +492,11 @@ def main(model_filename, data_filepath, test_scenes, batch_size, epochs, classif
 
 
 if __name__ == "__main__":
-    epochs = 80
+    epochs = 100
     batch_size = [64]
-    block = [2, 4]  # number of encoder-decoder blocks
-    patches = [64, 128]  # patch size (larger needs more memory)
-    classification = ['cloud']  #['snow', 'cloud', 'shadow']
+    block = [2]  # number of encoder-decoder blocks
+    patches = [64]  # patch size (larger needs more memory)
+    classification = ['cloud', 'shadow', 'snow']  #['snow', 'cloud', 'shadow']
     test_full_scene = 0
     test_outside_scene = 0
     run_model = 1
@@ -516,27 +518,7 @@ if __name__ == "__main__":
                         model_filename = os.path.join(model_filepath, model_fname)
                         model, history = main(model_filename, data_filepath, test_scenes, bs, epochs, cl, patch, steps, bl)
     
-#    if test_full_scene == 1:
-#        # testing on full scene
-#        scene = "LC81480352013195LGN00_32_data.tif" # snow scene
-#        model_filename = '/home/tkleynhans/hydrosat/data/models/sparcs_2D_100epochs_32bs_64patch_snow_64patch_50step_1gpu.h5'
-#        model = load_model(model_filename, compile=False)
-#        filepath = '/home/tkleynhans/hydrosat/data/scenes/'
-#        test_filename = os.path.join(filepath, scene)
-#        plot_full_scene(model, test_filename, patches)
-#    
-#    if test_outside_scene == 1:
-#        # test on scene not part of sparcs
-#        start_time = time.time()
-#        model_filename = '/home/tkleynhans/hydrosat/data/models/sparcs_2D_100epochs_32bs_64patch_snow_64patch_50step_1gpu.h5'
-#        model = load_model(model_filename, compile=False)
-#        # scene = "LC08_L1TP_034033_20160301_20200907_02_T1_B1.TIF"
-#        scene = "LC08_L1TP_148035_20130714_20170503_01_T1_B9.TIF"
-#        filepath = '/home/tkleynhans/hydrosat/data/landsat/LC08_L1TP_148035_20130714_20170503_01_T1'
-#        test_filename = os.path.join(filepath, scene)
-#        data, reconstructed_image = plot_predict_new_scene(model, test_filename, xy)
-#        end_time = time.time()
-#        print('Total time in min: ',(end_time - start_time)/60)
+
     
     
     
