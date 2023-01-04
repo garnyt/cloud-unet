@@ -391,7 +391,7 @@ if __name__ == "__main__":
     batch_size = [64]
     block = [2]  # number of encoder-decoder blocks
     patches = [64]  # patch size (larger needs more memory)
-    classification = ['cloud']  #['snow', 'cloud', 'shadow']
+    classification = ['cloud', 'snow']  #['snow', 'cloud', 'shadow']
     test_full_scene = 0
     test_outside_scene = 0
     run_model = 1
