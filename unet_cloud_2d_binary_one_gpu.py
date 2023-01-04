@@ -84,7 +84,7 @@ def load_training_data(filename):
     for i in range(data.shape[2]-1):
         data[:,:,i] = data[:,:,i] / max_training[i] 
     # stretch temperature data (Kelvin)
-    data[:,:,4] = (330 - data[:,:,4]) / (330-200)
+    data[:,:,4] = (data[:,:,4] - 220) / (330-200)
     data[:,:,4][data[:,:,4] < 0] = 0
     
     return data, label, qmask, c1bqa, rgb    
@@ -342,111 +342,6 @@ def plot_full_scene(model, test_filename, xy):
     plt.show()
 
 
-def plot_predict_new_scene(model, test_filename, xy=64):
-    """Predict feature from full scene input."""
-    
-    src = rasterio.open(test_filename)
-    img = src.read(1)
-    
-    data = np.empty([img.shape[0],img.shape[1],6])
-    for file in os.listdir(os.path.dirname(test_filename)):
-        print(file)
-        if "_B2" in file:
-            test_filename = os.path.join(os.path.dirname(test_filename), file)
-            src = rasterio.open(test_filename)
-            img = src.read(1) # blue
-            data[:,:,0] = img.astype(float) * 2.0000E-05 - 0.100000  
-        if "_B3" in file:
-            test_filename = os.path.join(os.path.dirname(test_filename), file)
-            src = rasterio.open(test_filename)
-            img = src.read(1) # green
-            data[:,:,1] = img.astype(float) * 2.0000E-05 - 0.100000
-        if "_B4" in file:
-            test_filename = os.path.join(os.path.dirname(test_filename), file)
-            src = rasterio.open(test_filename)
-            img = src.read(1) # red
-            data[:,:,2] = img.astype(float) * 2.0000E-05 - 0.100000
-        if "_B5" in file:
-            test_filename = os.path.join(os.path.dirname(test_filename), file)
-            src = rasterio.open(test_filename)
-            img = src.read(1) # NIR (similar to band 7 of VZ01 vnir)
-            data[:,:,3] = img.astype(float) * 2.0000E-05 - 0.100000
-        if "_B10" in file:
-            test_filename = os.path.join(os.path.dirname(test_filename), file)
-            src = rasterio.open(test_filename)
-            img = src.read(1) # thermal
-            img = img.astype(float) * 3.3420E-04 + 0.1
-            data[:,:,4] = apptemp(img,  band ='b10')
-            mask = np.copy(img)
-            mask[mask < 0] = 0
-            mask[mask > 0] = 1
-     
-    rgb = data[:,:,0:3] *1.5           
-    # normalize data with values accross all scenes (subset max values skews data)
-    max_training = [1.2107, 1.2107, 1.2107, 1.2107, 91.33669913673828]
-    
-    for i in range(data.shape[2]):
-        data[:,:,i] = data[:,:,i] / max_training[i] 
-    
-    boundary = 10
-    steps = xy - (boundary * 2)  # to be able to remove boundary created by padding
-    patches = patchify(data, (xy, xy, bands), step=steps)  #Step=256 for 256 patches means no overlap
-    # patches_new = np.reshape(patches, (-1, patches.shape[3], patches.shape[4], patches.shape[5]))
-
-    print(data.shape)
-    print(patches.shape)
-    # print(patches_new.shape)
-
-    reconstructed_image = np.zeros((data.shape[0], data.shape[1]))
-    
-    i_start_row = boundary
-
-    for i in range(patches.shape[0]):
-        j_start_col = boundary
-        for j in range(patches.shape[1]):
-            single_patch = patches[i,j,0,:,:,:]
-            single_patch_input = np.expand_dims(single_patch, axis=0)
-            single_patch_prediction = model.predict(single_patch_input)
-            
-            # remove boundaries
-            single_patch_prediction_no_boundaries = single_patch_prediction[0, boundary:-boundary, boundary:-boundary, 0]
-            
-            # add prediction to image
-            reconstructed_image[i_start_row : i_start_row + steps, j_start_col : j_start_col + steps] = single_patch_prediction_no_boundaries
-            
-            j_start_col = j_start_col + steps
-        i_start_row = i_start_row + steps     
-    
-    plt.figure()
-    plt.subplot(1,3,1)
-    plt.imshow(rgb)
-    plt.axis('off')
-    plt.title('Scaled color')
-    plt.show()
-    plt.subplot(1,3,2)
-    plt.imshow(reconstructed_image) #, cmap='Dark2', vmin=0, vmax=7)
-    plt.axis('off')
-    plt.title('Predicted classification')
-    plt.colorbar()
-    plt.show()
-    scaled = np.where(reconstructed_image > 0.85, 1, 0)
-    plt.subplot(1,3,3)
-    plt.imshow(scaled)
-    plt.axis('off')
-    plt.title('Threshold = 0.85')
-    plt.show()
-    
-    return data, reconstructed_image
-
-
-def display_per_class_accuracy(model, X_test, y_test):
-    
-    y_pred = model.predict(X_test)
-    y_pred[y_pred > 0.5] = 1
-    y_pred[y_pred != 1] = 0
-    
-    print(classification_report(y_test.flatten(), y_pred.flatten()))
-
 def main(model_filename, data_filepath, test_scenes, batch_size, epochs, classification, xy, steps, block):
     """Run application."""
 
@@ -496,7 +391,7 @@ if __name__ == "__main__":
     batch_size = [64]
     block = [2]  # number of encoder-decoder blocks
     patches = [64]  # patch size (larger needs more memory)
-    classification = ['cloud', 'shadow', 'snow']  #['snow', 'cloud', 'shadow']
+    classification = ['cloud']  #['snow', 'cloud', 'shadow']
     test_full_scene = 0
     test_outside_scene = 0
     run_model = 1
