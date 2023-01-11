@@ -55,16 +55,6 @@ def load_training_data(filename):
     img = src.read(1)
     label = img
     
-    filename_lables = filename[:-8] + 'qmask.tif'
-    src = rasterio.open(filename_lables)
-    img = src.read(1)
-    qmask = img
-    
-    filename_lables = filename[:-8] + 'c1bqa.tif'
-    src = rasterio.open(filename_lables)
-    img = src.read(1)
-    c1bqa = img
-    
     filename_rgb = filename[:-8] + 'photo.png'
     src = rasterio.open(filename_rgb)
     R = src.read(1)
@@ -87,7 +77,7 @@ def load_training_data(filename):
     data[:,:,4] = (data[:,:,4] - 220) / (330-200)
     data[:,:,4][data[:,:,4] < 0] = 0
     
-    return data, label, qmask, c1bqa, rgb    
+    return data, label, rgb    
 
 
 def apptemp(img,  band ='b10'):
@@ -122,7 +112,7 @@ def load_and_format_training_data(filepath, test_scenes, classification, xy=64, 
         if '_data' in file and test_scenes[0] not in file and test_scenes[1] not in file:
             try:
                 filename = os.path.join(filepath, file)            
-                data, label, qmask, c1bqa, rgb = load_training_data(filename) 
+                data, label, rgb = load_training_data(filename) 
                 # mask_label = np.copy(label)
                 for idx in class_num:
                     label[label == idx] = 10
@@ -342,6 +332,15 @@ def plot_full_scene(model, test_filename, xy):
     plt.show()
 
 
+def display_per_class_accuracy(model, X_test, y_test):
+    
+    Y_test = np.argmax(y_test, axis=4) # Convert one-hot to index
+    y_pred = model.predict(X_test)
+    test_prediction = np.argmax(y_pred, axis=4)
+    
+    print(classification_report(Y_test.flatten(), test_prediction.flatten()))
+
+
 def main(model_filename, data_filepath, test_scenes, batch_size, epochs, classification, xy, steps, block):
     """Run application."""
 
@@ -387,7 +386,7 @@ def main(model_filename, data_filepath, test_scenes, batch_size, epochs, classif
 
 
 if __name__ == "__main__":
-    epochs = 100
+    epochs = 101
     batch_size = [64]
     block = [2]  # number of encoder-decoder blocks
     patches = [64]  # patch size (larger needs more memory)
