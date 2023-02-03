@@ -372,7 +372,7 @@ def main(model_filename, data_filepath, test_scenes, batch_size, epochs, classif
               verbose=1,
               validation_data=(X_test, y_test))
     
-    display_per_class_accuracy(model, X_test, y_test)
+    # display_per_class_accuracy(model, X_test, y_test)
     
     end_time = time.time()
     print('Total time in min: ',(end_time - start_time)/60)
