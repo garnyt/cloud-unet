@@ -77,6 +77,8 @@ def load_training_data(filename):
     data[:,:,4] = (data[:,:,4] - 220) / (330-200)
     data[:,:,4][data[:,:,4] < 0] = 0
     
+    data = 1-data
+    
     return data, label, rgb    
 
 
@@ -109,7 +111,7 @@ def load_and_format_training_data(filepath, test_scenes, classification, xy=64, 
     cnt = 0
     # plt.figure()
     for file in os.listdir(filepath):
-        if '_data' in file and test_scenes[0] not in file and test_scenes[1] not in file:
+        if '_data' in file: # and test_scenes[0] not in file and test_scenes[1] not in file:
             try:
                 filename = os.path.join(filepath, file)            
                 data, label, rgb = load_training_data(filename) 
@@ -254,11 +256,11 @@ def plotting_results(history):
 def plot_full_scene(model, test_filename, xy):
     """Predict feature from full scene input."""
     #Break the large image (volume) into patches of same size as the training images (patches)
-    full_image, label, qmask, c1bqa, rgb = load_training_data(test_filename)
+    full_image, label, rgb = load_training_data(test_filename)
     
     boundary = 4
     steps = xy - (boundary * 2)  # to be able to remove boundary created by padding
-    patches = patchify(full_image, (xy, xy, 6), step=steps)  #Step=256 for 256 patches means no overlap
+    patches = patchify(full_image, (xy, xy, full_image.shape[2]), step=steps)  #Step=256 for 256 patches means no overlap
     # patches_new = np.reshape(patches, (-1, patches.shape[3], patches.shape[4], patches.shape[5]))
 
     print(full_image.shape)
@@ -305,23 +307,23 @@ def plot_full_scene(model, test_filename, xy):
     #cbar.ax.set_yticklabels(['Cloud Shadow', 'Cloud Shadow over Water', 'Water',
     #                          'Ice/Snow','Land','Clouds','Flooded','None'])
     plt.show()
-    scaled = np.where(reconstructed_image > 0.5, 1, 0)
+    scaled = np.where(reconstructed_image > 0.2, 1, 0)
     plt.subplot(2,3,4)
     plt.imshow(scaled)
     plt.axis('off')
-    plt.title('Threshold = 0.85')
+    plt.title('Threshold = 0.2')
     plt.show()
-    scaled = np.where(reconstructed_image > 0.9, 1, 0)
+    scaled = np.where(reconstructed_image > 0.5, 1, 0)
     plt.subplot(2,3,5)
     plt.imshow(scaled)
     plt.axis('off')
-    plt.title('Threshold = 0.9')
+    plt.title('Threshold = 0.5')
     plt.show()
-    scaled = np.where(reconstructed_image > 0.92, 1, 0)
+    scaled = np.where(reconstructed_image > 0.95, 1, 0)
     plt.subplot(2,3,6)
     plt.imshow(scaled)
     plt.axis('off')
-    plt.title('Threshold = 0.92')
+    plt.title('Threshold = 0.95')
     plt.show()
 
 
@@ -383,15 +385,15 @@ if __name__ == "__main__":
     batch_size = [64]
     block = [2]  # number of encoder-decoder blocks
     patches = [64]  # patch size (larger needs more memory)
-    classification = ['cloud']  #['snow', 'cloud', 'shadow']
+    classification = ['shadow']  #['snow', 'cloud', 'shadow']
     test_full_scene = 0
     test_outside_scene = 0
     run_model = 1
-    test_scenes = ['LC82010332014105LGN00_34', 'LC81480352013195LGN00_32']
+    test_scenes = [] # ['LC82010332014105LGN00_34', 'LC81480352013195LGN00_32']
     
     cnt = 0
     if run_model == 1:
-        data_filepath = '/home/tkleynhans/hydrosat/data/scenes_subset/'
+        data_filepath = '/home/tkleynhans/hydrosat/data/shadow_test/'
         model_filepath = '/home/tkleynhans/hydrosat/data/models'
         for bs in batch_size:
             for bl in block:
@@ -404,7 +406,9 @@ if __name__ == "__main__":
                         
                         model_filename = os.path.join(model_filepath, model_fname)
                         model, history = main(model_filename, data_filepath, test_scenes, bs, epochs, cl, patch, steps, bl)
-
+    
+    test_filename = os.path.join(data_filepath, 'LC82290562014157LGN00_24_data.tif')                  
+    plot_full_scene(model, test_filename, patch)
     
 
     

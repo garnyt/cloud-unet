@@ -29,7 +29,7 @@ def load_training_data(filename):
     src = rasterio.open(filename)
     img = src.read(1)
     
-    data = np.empty([img.shape[0],img.shape[1],6])
+    data = np.empty([img.shape[0],img.shape[1],5])
 
     img = src.read(2) # blue
     data[:,:,0] = img * 2.0000E-05 - 0.100000
@@ -71,18 +71,13 @@ def load_training_data(filename):
      # normalize data with values accross all scenes (subset max values skews data)
     max_training = [1.2107, 1.2107, 1.2107, 1.2107]
 
-    for i in range(data.shape[2]-2):
+    for i in range(data.shape[2]-1):
         data[:,:,i] = data[:,:,i] / max_training[i] 
     # stretch temperature data (Kelvin)
     data[:,:,4] = (data[:,:,4] - 220) / (330-200)
     data[:,:,4][data[:,:,4] < 0] = 0
 
-    shadow = np.copy(label)
-    shadow[shadow == 5] = 10
-    shadow[shadow != 10] = 0
-    shadow[shadow == 10] = 1
-
-    data[:,:,5] = shadow
+    data = 1-data
     
     return data, label, rgb    
 
@@ -143,7 +138,7 @@ def load_and_format_training_data(filepath, test_scenes, classification, xy=64, 
     n_classes = 2 #np.unique(mask).shape[0]
     
     # create smaller section per image 
-    img_patches = patchify(image, (xy, xy, 6), step=steps)  # Step=64 for 64 patches means no overlap
+    img_patches = patchify(image, (xy, xy, 5), step=steps)  # Step=64 for 64 patches means no overlap
     mask_patches = patchify(mask.astype(int), (xy, xy), step=steps)
 
     input_img = np.reshape(img_patches, (-1, img_patches.shape[3], img_patches.shape[4], img_patches.shape[5]))
@@ -261,18 +256,11 @@ def plotting_results(history):
 def plot_full_scene(model, test_filename, xy):
     """Predict feature from full scene input."""
     #Break the large image (volume) into patches of same size as the training images (patches)
-    full_image, label, qmask, c1bqa, rgb = load_training_data(test_filename)
-    
-    plt.subplot(1,3,1)
-    plt.imshow(full_image[:,:,4])
-    plt.subplot(1,3,2)
-    plt.imshow(rgb)
-    plt.subplot(1,3,3)
-    plt.imshow(data[:,:,4])
+    full_image, label, rgb = load_training_data(test_filename)
     
     boundary = 4
     steps = xy - (boundary * 2)  # to be able to remove boundary created by padding
-    patches = patchify(full_image, (xy, xy, 6), step=steps)  #Step=256 for 256 patches means no overlap
+    patches = patchify(full_image, (xy, xy, full_image.shape[2]), step=steps)  #Step=256 for 256 patches means no overlap
     # patches_new = np.reshape(patches, (-1, patches.shape[3], patches.shape[4], patches.shape[5]))
 
     print(full_image.shape)
@@ -319,25 +307,24 @@ def plot_full_scene(model, test_filename, xy):
     #cbar.ax.set_yticklabels(['Cloud Shadow', 'Cloud Shadow over Water', 'Water',
     #                          'Ice/Snow','Land','Clouds','Flooded','None'])
     plt.show()
-    scaled = np.where(reconstructed_image > 0.85, 1, 0)
+    scaled = np.where(reconstructed_image > 0.2, 1, 0)
     plt.subplot(2,3,4)
     plt.imshow(scaled)
     plt.axis('off')
-    plt.title('Threshold = 0.85')
+    plt.title('Threshold = 0.2')
     plt.show()
-    scaled = np.where(reconstructed_image > 0.9, 1, 0)
+    scaled = np.where(reconstructed_image > 0.5, 1, 0)
     plt.subplot(2,3,5)
     plt.imshow(scaled)
     plt.axis('off')
-    plt.title('Threshold = 0.9')
+    plt.title('Threshold = 0.5')
     plt.show()
-    scaled = np.where(reconstructed_image > 0.92, 1, 0)
+    scaled = np.where(reconstructed_image > 0.95, 1, 0)
     plt.subplot(2,3,6)
     plt.imshow(scaled)
     plt.axis('off')
-    plt.title('Threshold = 0.92')
+    plt.title('Threshold = 0.95')
     plt.show()
-
 
 def display_per_class_accuracy(model, X_test, y_test):
     
@@ -393,10 +380,10 @@ def main(model_filename, data_filepath, test_scenes, batch_size, epochs, classif
 
 
 if __name__ == "__main__":
-    epochs = 101
-    batch_size = [64, 128]
+    epochs = 102
+    batch_size = [64]
     block = [2, 4]  # number of encoder-decoder blocks
-    patches = [64]  # patch size (larger needs more memory)
+    patches = [64, 128]  # patch size (larger needs more memory)
     classification = ['shadow']  #['snow', 'cloud', 'shadow']
     test_full_scene = 0
     test_outside_scene = 0
@@ -405,7 +392,7 @@ if __name__ == "__main__":
     
     cnt = 0
     if run_model == 1:
-        data_filepath = '/home/tkleynhans/hydrosat/data/scenes_subset/'
+        data_filepath = '/home/tkleynhans/hydrosat/data/shadow_test/'
         model_filepath = '/home/tkleynhans/hydrosat/data/models'
         for bs in batch_size:
             for bl in block:
@@ -419,4 +406,5 @@ if __name__ == "__main__":
                         model_filename = os.path.join(model_filepath, model_fname)
                         model, history = main(model_filename, data_filepath, test_scenes, bs, epochs, cl, patch, steps, bl)
 
-
+    # test_filename = os.path.join(data_filepath, 'LC82290562014157LGN00_24_data.tif')                  
+    # plot_full_scene(model, test_filename, patch)
