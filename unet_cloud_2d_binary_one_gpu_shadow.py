@@ -381,10 +381,10 @@ def main(model_filename, data_filepath, test_scenes, batch_size, epochs, classif
 
 
 if __name__ == "__main__":
-    epochs = 20
+    epochs = 102
     batch_size = [64]
-    block = [2]  # number of encoder-decoder blocks
-    patches = [64]  # patch size (larger needs more memory)
+    block = [2, 4]  # number of encoder-decoder blocks
+    patches = [64, 128]  # patch size (larger needs more memory)
     classification = ['shadow']  #['snow', 'cloud', 'shadow']
     test_full_scene = 0
     test_outside_scene = 0
@@ -407,8 +407,9 @@ if __name__ == "__main__":
                         model_filename = os.path.join(model_filepath, model_fname)
                         model, history = main(model_filename, data_filepath, test_scenes, bs, epochs, cl, patch, steps, bl)
     
-    test_filename = os.path.join(data_filepath, 'LC82290562014157LGN00_24_data.tif')                  
-    plot_full_scene(model, test_filename, patch)
+
+    #test_filename = os.path.join(data_filepath, 'LC82290562014157LGN00_24_data.tif')                  
+    #plot_full_scene(model, test_filename, patch)
     
 
     
