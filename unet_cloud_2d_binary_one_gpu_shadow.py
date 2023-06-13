@@ -8,7 +8,9 @@ import os
 import numpy as np
 import rasterio
 import time
+import json
 import matplotlib.pyplot as plt
+from datetime import date
 from patchify import patchify
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report
@@ -20,7 +22,7 @@ from tensorflow.python.keras.metrics import BinaryAccuracy
 from tensorflow.keras.optimizers import Adam
 
 
-def load_training_data(filename):
+def load_training_data(filename, sbaf):
     """Read bands similar to VZ01.
 
     Args:
@@ -32,17 +34,21 @@ def load_training_data(filename):
     data = np.empty([img.shape[0],img.shape[1],5])
 
     img = src.read(2) # blue
-    data[:,:,0] = img * 2.0000E-05 - 0.100000
+    data[:,:,0] = sbaf["viri"]["BLUE"][0] + (img * 2.0000E-05 - 0.100000) * sbaf["viri"]["BLUE"][1]
     img = src.read(3) # green
-    data[:,:,1] = img * 2.0000E-05 - 0.100000
+    data[:,:,1] = sbaf["viri"]["GREEN"][0] + (img * 2.0000E-05 - 0.100000) * sbaf["viri"]["GREEN"][1]
     img = src.read(4) # red
-    data[:,:,2] = img * 2.0000E-05 - 0.100000
+    data[:,:,2] = sbaf["viri"]["RED"][0] + (img * 2.0000E-05 - 0.100000) * sbaf["viri"]["RED"][1]
     img = src.read(5) # NIR (similar to band 7 of VZ01 vnir)
-    data[:,:,3] = img * 2.0000E-05 - 0.100000
-    img = src.read(9)
-    mask = np.copy(img)
-    img = img * 3.3420E-04 + 0.1
-    data[:,:,4] = apptemp(img,  band ='b10')
+    data[:,:,3] = sbaf["viri"]["NIR2"][0] + (img * 2.0000E-05 - 0.100000) * sbaf["viri"]["NIR2"][1]
+    b10 = src.read(9)
+    b11 = src.read(10)
+    mask = np.copy(b10)
+    b10 = b10 * 3.3420E-04 + 0.1
+    b11 = b11 * 3.3420E-04 + 0.1
+    # apply sabf   
+    img = sbaf["liri"]["LWIR1"][0] + b10 * sbaf["liri"]["LWIR1"][1] + b10 * sbaf["liri"]["LWIR1"][2]
+    data[:,:,4] = retrieve_temprature_from_LUT(img,  band ='LWIR1')
     
     mask[mask < 0] = 0
     mask[mask > 0] = 1
@@ -82,21 +88,27 @@ def load_training_data(filename):
     return data, label, rgb    
 
 
-def apptemp(img,  band ='b10'):
-    """Convert radiance to apparent temperature."""
-    # K1 and K2 constants to be found in MTL.txt file for each band
-    if band == 'b10':
-        K2 = 1321.0789
-        K1 = 774.8853
-    elif band == 'b11':
-        K2 = 1201.1442
-        K1 = 480.8883
-    else:
-        print('call function with T = appTemp(radiance, band=\'b10\'')
-        return
-    temperature = np.divide(K2,(np.log(np.divide(K1,np.array(img)) + 1)))
- 
-    return temperature
+def retrieve_temprature_from_LUT(radiance, band='LWIR1'):
+    """Find apparent temperature for LIRI band from LUT.
+    
+    Args:
+        radiance (array of floats): radiance values
+        band (str): name of band to be converted
+    
+    Return:
+        T (array of floats): Apparent temperature array same size as radiance input.
+    
+    """
+    filepath = "spec_files/"
+
+    if band == 'LWIR1':
+        LUT = np.loadtxt(filepath + 'LUT_LWIR1.csv', delimiter=',')
+    elif band == 'LWIR2':
+        LUT = np.loadtxt(filepath + 'LUT_LWIR2.csv', delimiter=',')
+
+    T = np.interp(radiance, LUT[:,0], LUT[:,1])
+
+    return T
 
 
 def load_and_format_training_data(filepath, test_scenes, classification, xy=64, steps=64):
@@ -108,13 +120,17 @@ def load_and_format_training_data(filepath, test_scenes, classification, xy=64, 
     elif classification == 'shadow':
         class_num = [0, 1]
 
+    # Load spectral band adjustment coefficients
+    with open("spec_files/vz01_sbaf_landsat8.json") as sbaf_file:
+        sbaf = json.load(sbaf_file)
+
     cnt = 0
     # plt.figure()
     for file in os.listdir(filepath):
         if '_data' in file: # and test_scenes[0] not in file and test_scenes[1] not in file:
             try:
                 filename = os.path.join(filepath, file)            
-                data, label, rgb = load_training_data(filename) 
+                data, label, rgb = load_training_data(filename, sbaf) 
                 # mask_label = np.copy(label)
                 for idx in class_num:
                     label[label == idx] = 10
@@ -381,16 +397,17 @@ def main(model_filename, data_filepath, test_scenes, batch_size, epochs, classif
 
 
 if __name__ == "__main__":
-    epochs = 102
+    epochs = 100
     batch_size = [64]
-    block = [2, 4]  # number of encoder-decoder blocks
-    patches = [64, 128]  # patch size (larger needs more memory)
+    block = [2]  # number of encoder-decoder blocks
+    patches = [64]  # patch size (larger needs more memory)
     classification = ['shadow']  #['snow', 'cloud', 'shadow']
     test_full_scene = 0
     test_outside_scene = 0
     run_model = 1
     test_scenes = [] # ['LC82010332014105LGN00_34', 'LC81480352013195LGN00_32']
     
+    today = str(date.today())
     cnt = 0
     if run_model == 1:
         data_filepath = '/home/tkleynhans/hydrosat/data/shadow_test/'
@@ -400,7 +417,7 @@ if __name__ == "__main__":
                 for cl in classification:
                     for patch in patches:
                         steps = patch - 10
-                        model_fname = f'sparcs_2D_{epochs}epochs_{bs}bs_{cl}_{patch}patch_{bl}blocks_1gpu.h5'
+                        model_fname = f'vz01_sparcs_2D_{epochs}epochs_{bs}bs_{cl}_{patch}patch_{bl}blocks_{today}.h5'
                         print(model_fname)
                         cnt += 1
                         
