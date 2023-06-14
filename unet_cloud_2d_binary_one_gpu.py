@@ -47,7 +47,7 @@ def load_training_data(filename, sbaf):
     b10 = b10 * 3.3420E-04 + 0.1
     b11 = b11 * 3.3420E-04 + 0.1
     # apply sabf   
-    img = sbaf["liri"]["LWIR1"][0] + b10 * sbaf["liri"]["LWIR1"][1] + b10 * sbaf["liri"]["LWIR1"][2]
+    img = sbaf["liri"]["LWIR1"][0] + b10 * sbaf["liri"]["LWIR1"][1] + b11 * sbaf["liri"]["LWIR1"][2]
     data[:,:,4] = retrieve_temprature_from_LUT(img,  band ='LWIR1')
     
     mask[mask < 0] = 0
